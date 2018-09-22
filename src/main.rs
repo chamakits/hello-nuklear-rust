@@ -107,11 +107,11 @@ where
     Image::with_id(hnd.id().unwrap())
 }
 
-fn create_base<Cf, Df>() -> (glutin::GlWindow, device_gl::Device, device_gl::Factory,
-            handle::RenderTargetView<R, (gfx::format::R8_G8_B8_A8, gfx::format::Unorm)>, handle::DepthStencilView<R, (gfx::format::D24_S8, gfx::format::Unorm)>)
-where
-    Cf: format::RenderFormat,
-    Df: format::DepthFormat,
+pub type ColorFormatImpl = (gfx::format::R8_G8_B8_A8, gfx::format::Unorm);
+pub type DepthFormatImpl = (gfx::format::D24_S8, gfx::format::Unorm);
+
+fn create_base() -> (glutin::GlWindow, device_gl::Device, device_gl::Factory,
+            handle::RenderTargetView<R, ColorFormatImpl>, handle::DepthStencilView<R, DepthFormatImpl>)
 {
     
     let gl_version = GlRequest::GlThenGles {
