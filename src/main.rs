@@ -130,7 +130,7 @@ fn create_base() -> (
     return (tup_return.0,tup_return.1,tup_return.2,tup_return.3,tup_return.4, event_loop);
 }
 
-fn config_setup() -> nuklear::FontConfig {
+fn font_config_setup() -> nuklear::FontConfig {
     let mut cfg = FontConfig::with_size(0.0);
     cfg.set_oversample_h(3);
     cfg.set_oversample_v(2);
@@ -138,6 +138,18 @@ fn config_setup() -> nuklear::FontConfig {
     cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
 
     return cfg;
+}
+
+fn convert_config_setup(null: &nuklear::DrawNullTexture) -> ConvertConfig {
+    let mut config = ConvertConfig::default();
+    config.set_null(null.clone());
+    config.set_circle_segment_count(22);
+    config.set_curve_segment_count(22);
+    config.set_arc_segment_count(22);
+    config.set_global_alpha(1.0f32);
+    config.set_shape_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
+    config.set_line_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
+    return config;
 }
 
 fn set_font( cfg: &mut nuklear::FontConfig, atlas: &mut FontAtlas, size: f32, owned_by_atlas: bool) -> usize {
@@ -150,12 +162,12 @@ fn main() {
     
     let (window, mut device, mut factory, main_color, mut main_depth, mut event_loop) = create_base();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
-    let mut cfg = config_setup();
+    let mut cfg = font_config_setup();
 
     let mut allo = Allocator::new_vec();
     let mut drawer = Drawer::new(&mut factory, main_color, 36, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY, Buffer::with_size(&mut allo, MAX_COMMANDS_MEMORY), GfxBackend::OpenGlsl150);
     let mut atlas = FontAtlas::new(&mut allo);
-    
+
     let font_14 = set_font(&mut cfg, &mut atlas, 14f32, false);
 
     let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
@@ -169,14 +181,7 @@ fn main() {
     let mut null = DrawNullTexture::default();
     atlas.end(font_tex, Some(&mut null));
 
-    let mut config = ConvertConfig::default();
-    config.set_null(null.clone());
-    config.set_circle_segment_count(22);
-    config.set_curve_segment_count(22);
-    config.set_arc_segment_count(22);
-    config.set_global_alpha(1.0f32);
-    config.set_shape_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
-    config.set_line_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
+    let mut config = convert_config_setup(&null);
 
     let mut closed = false;
     while !closed {
@@ -201,7 +206,6 @@ fn main() {
         let scale = Vec2 { x: scale, y: scale };
 
         // let media: Media = {};
-
         let mut basic_state = BasicState {
             image_active: false,
             check0: true,
@@ -215,8 +219,6 @@ fn main() {
             piemenu_pos: Vec2::default(),
         };
 
-        drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
-
         // basic_demo(&mut ctx, &mut media, &mut basic_state);
         encoder.clear(drawer.col.as_ref().unwrap(), [0.1f32, 0.2f32, 0.3f32, 1.0f32]);
         drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
@@ -229,229 +231,6 @@ fn main() {
 
         ctx.clear();
     }
-
-    /*
-    let gl_version = GlRequest::GlThenGles {
-        opengles_version: (2, 0),
-        opengl_version: (3, 3),
-    };
-
-    let builder = glutin::WindowBuilder::new().with_title("Nuklear Rust Gfx OpenGL Demo").with_dimensions(1280, 800);
-
-    let context = glutin::ContextBuilder::new().with_gl(gl_version).with_vsync(true).with_srgb(false).with_depth_buffer(24);
-    let mut event_loop = glutin::EventsLoop::new();
-    let (window, mut device, mut factory, main_color, mut main_depth) = gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, context, &event_loop);
-    let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
-
-    let mut cfg = FontConfig::with_size(0.0);
-    cfg.set_oversample_h(3);
-    cfg.set_oversample_v(2);
-    cfg.set_glyph_range(font_cyrillic_glyph_ranges());
-    cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
-
-    let mut allo = Allocator::new_vec();
-
-    let mut drawer = Drawer::new(&mut factory, main_color, 36, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY, Buffer::with_size(&mut allo, MAX_COMMANDS_MEMORY), GfxBackend::OpenGlsl150);
-
-    let mut atlas = FontAtlas::new(&mut allo);
-
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(14f32);
-    let font_14 = atlas.add_font_with_config(&cfg).unwrap();
-
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(18f32);
-    let font_18 = atlas.add_font_with_config(&cfg).unwrap();
-
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(20f32);
-    let font_20 = atlas.add_font_with_config(&cfg).unwrap();
-
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(22f32);
-    let font_22 = atlas.add_font_with_config(&cfg).unwrap();
-
-    let font_tex = {
-        let (b, w, h) = atlas.bake(FontAtlasFormat::NK_FONT_ATLAS_RGBA32);
-        drawer.add_texture(&mut factory, b, w, h)
-    };
-
-    let mut null = DrawNullTexture::default();
-
-    atlas.end(font_tex, Some(&mut null));
-    //atlas.cleanup();
-
-    let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
-
-    let mut media = Media {
-        font_atlas: atlas,
-        font_14: font_14,
-        font_18: font_18,
-        font_20: font_20,
-        font_22: font_22,
-
-        font_tex: font_tex,
-
-        unchecked: icon_load(&mut factory, &mut drawer, "res/icon/unchecked.png"),
-        checked: icon_load(&mut factory, &mut drawer, "res/icon/checked.png"),
-        rocket: icon_load(&mut factory, &mut drawer, "res/icon/rocket.png"),
-        cloud: icon_load(&mut factory, &mut drawer, "res/icon/cloud.png"),
-        pen: icon_load(&mut factory, &mut drawer, "res/icon/pen.png"),
-        play: icon_load(&mut factory, &mut drawer, "res/icon/play.png"),
-        pause: icon_load(&mut factory, &mut drawer, "res/icon/pause.png"),
-        stop: icon_load(&mut factory, &mut drawer, "res/icon/stop.png"),
-        prev: icon_load(&mut factory, &mut drawer, "res/icon/prev.png"),
-        next: icon_load(&mut factory, &mut drawer, "res/icon/next.png"),
-        tools: icon_load(&mut factory, &mut drawer, "res/icon/tools.png"),
-        dir: icon_load(&mut factory, &mut drawer, "res/icon/directory.png"),
-        copy: icon_load(&mut factory, &mut drawer, "res/icon/copy.png"),
-        convert: icon_load(&mut factory, &mut drawer, "res/icon/export.png"),
-        del: icon_load(&mut factory, &mut drawer, "res/icon/delete.png"),
-        edit: icon_load(&mut factory, &mut drawer, "res/icon/edit.png"),
-        images: [
-            icon_load(&mut factory, &mut drawer, "res/images/image1.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image2.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image3.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image4.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image5.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image6.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image7.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image8.png"),
-            icon_load(&mut factory, &mut drawer, "res/images/image9.png"),
-        ],
-        menu: [
-            icon_load(&mut factory, &mut drawer, "res/icon/home.png"),
-            icon_load(&mut factory, &mut drawer, "res/icon/phone.png"),
-            icon_load(&mut factory, &mut drawer, "res/icon/plane.png"),
-            icon_load(&mut factory, &mut drawer, "res/icon/wifi.png"),
-            icon_load(&mut factory, &mut drawer, "res/icon/settings.png"),
-            icon_load(&mut factory, &mut drawer, "res/icon/volume.png"),
-        ],
-    };
-
-    let mut basic_state = BasicState {
-        image_active: false,
-        check0: true,
-        check1: false,
-        prog: 80,
-        selected_item: 0,
-        selected_image: 3,
-        selected_icon: 0,
-        items: ["Item 0", "item 1", "item 2"],
-        piemenu_active: false,
-        piemenu_pos: Vec2::default(),
-    };
-
-    let mut button_state = ButtonState {
-        option: 1,
-        toggle0: true,
-        toggle1: false,
-        toggle2: true,
-    };
-
-    let mut grid_state = GridState {
-        text: [[0; 64]; 4],
-        text_len: [0; 4],
-        items: ["Item 0", "item 1", "item 2", "Item 4"],
-        selected_item: 2,
-        check: true,
-    };
-
-    let mut mx = 0;
-    let mut my = 0;
-
-    let mut config = ConvertConfig::default();
-    config.set_null(null.clone());
-    config.set_circle_segment_count(22);
-    config.set_curve_segment_count(22);
-    config.set_arc_segment_count(22);
-    config.set_global_alpha(1.0f32);
-    config.set_shape_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
-    config.set_line_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
-
-    let mut closed = false;
-    while !closed {
-        ctx.input_begin();
-        event_loop.poll_events(|event| {
-            if let glutin::Event::WindowEvent { event, .. } = event {
-                match event {
-                    glutin::WindowEvent::Closed => closed = true,
-                    glutin::WindowEvent::ReceivedCharacter(c) => {
-                        ctx.input_unicode(c);
-                    }
-                    glutin::WindowEvent::KeyboardInput {
-                        input: glutin::KeyboardInput { state, virtual_keycode, .. },
-                        ..
-                    } => {
-                        if let Some(k) = virtual_keycode {
-                            let key = match k {
-                                glutin::VirtualKeyCode::Back => Key::NK_KEY_BACKSPACE,
-                                glutin::VirtualKeyCode::Delete => Key::NK_KEY_DEL,
-                                glutin::VirtualKeyCode::Up => Key::NK_KEY_UP,
-                                glutin::VirtualKeyCode::Down => Key::NK_KEY_DOWN,
-                                glutin::VirtualKeyCode::Left => Key::NK_KEY_LEFT,
-                                glutin::VirtualKeyCode::Right => Key::NK_KEY_RIGHT,
-                                _ => Key::NK_KEY_NONE,
-                            };
-
-                            ctx.input_key(key, state == glutin::ElementState::Pressed);
-                        }
-                    }
-                    glutin::WindowEvent::CursorMoved { position: (x, y), .. } => {
-                        mx = x as i32;
-                        my = y as i32;
-                        ctx.input_motion(x as i32, y as i32);
-                    }
-                    glutin::WindowEvent::MouseInput { state, button, .. } => {
-                        let button = match button {
-                            glutin::MouseButton::Left => Button::NK_BUTTON_LEFT,
-                            glutin::MouseButton::Middle => Button::NK_BUTTON_MIDDLE,
-                            glutin::MouseButton::Right => Button::NK_BUTTON_RIGHT,
-                            _ => Button::NK_BUTTON_MAX,
-                        };
-
-                        ctx.input_button(button, mx, my, state == glutin::ElementState::Pressed)
-                    }
-                    glutin::WindowEvent::MouseWheel { delta, .. } => {
-                        if let glutin::MouseScrollDelta::LineDelta(_, y) = delta {
-                            ctx.input_scroll(y * 22f32);
-                        }
-                    }
-                    glutin::WindowEvent::Resized(_, _) => {
-                        let mut main_color = drawer.col.clone().unwrap();
-                        gfx_window_glutin::update_views(&window, &mut main_color, &mut main_depth);
-                        drawer.col = Some(main_color);
-                    }
-                    _ => (),
-                }
-            }
-        });
-        ctx.input_end();
-
-        if closed {
-            break;
-        }
-
-        // println!("{:?}", event);
-        let (fw, fh) = window.get_inner_size().unwrap();
-        let scale = window.hidpi_factor();
-        let scale = Vec2 { x: scale, y: scale };
-
-        basic_demo(&mut ctx, &mut media, &mut basic_state);
-        button_demo(&mut ctx, &mut media, &mut button_state);
-        grid_demo(&mut ctx, &mut media, &mut grid_state);
-
-        encoder.clear(drawer.col.as_ref().unwrap(), [0.1f32, 0.2f32, 0.3f32, 1.0f32]);
-        drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
-        encoder.flush(&mut device);
-        window.swap_buffers().unwrap();
-        device.cleanup();
-
-        ::std::thread::sleep(::std::time::Duration::from_millis(20));
-
-        ctx.clear();
-    }
-    */
 }
 
 fn ui_header(ctx: &mut Context, media: &mut Media, title: &str) {
