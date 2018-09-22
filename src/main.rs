@@ -220,6 +220,7 @@ fn main() {
         };
 
         // basic_demo(&mut ctx, &mut media, &mut basic_state);
+        custom_simple_stuff(&mut ctx);
         encoder.clear(drawer.col.as_ref().unwrap(), [0.1f32, 0.2f32, 0.3f32, 1.0f32]);
         drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
         encoder.flush(&mut device);
@@ -231,6 +232,20 @@ fn main() {
 
         ctx.clear();
     }
+}
+
+fn custom_simple_stuff(ctx: &mut Context) {
+    // ctx.style_set_font(media.font_atlas.font(media.font_20).unwrap().handle());
+    ctx.begin(
+        nk_string!("Basic Nuklear Rust!"),
+        Rect { x: 320f32, y: 50f32, w: 275f32, h: 610f32 },
+        PanelFlags::NK_WINDOW_BORDER as Flags | PanelFlags::NK_WINDOW_MOVABLE as Flags | PanelFlags::NK_WINDOW_TITLE as Flags,
+    );
+    ctx.layout_row_dynamic(30f32, 2);
+    ctx.text("Free type:", TextAlignment::NK_TEXT_RIGHT as Flags);
+    
+    // ctx.style_set_font(media.font_atlas.font(media.font_14).unwrap().handle());
+    ctx.end();
 }
 
 fn ui_header(ctx: &mut Context, media: &mut Media, title: &str) {
