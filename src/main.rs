@@ -110,8 +110,10 @@ where
 pub type ColorFormatImpl = (gfx::format::R8_G8_B8_A8, gfx::format::Unorm);
 pub type DepthFormatImpl = (gfx::format::D24_S8, gfx::format::Unorm);
 
-fn create_base() -> (glutin::GlWindow, device_gl::Device, device_gl::Factory,
-            handle::RenderTargetView<R, ColorFormatImpl>, handle::DepthStencilView<R, DepthFormatImpl>)
+fn create_base() -> (
+        glutin::GlWindow, device_gl::Device, 
+        device_gl::Factory, handle::RenderTargetView<R, ColorFormatImpl>, 
+        handle::DepthStencilView<R, DepthFormatImpl>, glutin::EventsLoop)
 {
     
     let gl_version = GlRequest::GlThenGles {
@@ -123,22 +125,107 @@ fn create_base() -> (glutin::GlWindow, device_gl::Device, device_gl::Factory,
     let context = glutin::ContextBuilder::new().with_gl(gl_version).with_vsync(true).with_srgb(false).with_depth_buffer(24);
     let mut event_loop = glutin::EventsLoop::new();
     let tup_return = gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, context, &event_loop);
-    return tup_return;
+
+    // return tup_return;
+    return (tup_return.0,tup_return.1,tup_return.2,tup_return.3,tup_return.4, event_loop);
+}
+
+fn config_setup() -> nuklear::FontConfig {
+    let mut cfg = FontConfig::with_size(0.0);
+    cfg.set_oversample_h(3);
+    cfg.set_oversample_v(2);
+    cfg.set_glyph_range(font_cyrillic_glyph_ranges());
+    cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
+
+    cfg.set_ttf_data_owned_by_atlas(false);
+    cfg.set_size(14f32);
+
+    return cfg;
 }
 
 fn main() {
     
-    // let (window, mut device, mut factory, main_color, mut main_depth) = create_base();
-    
-    let gl_version = GlRequest::GlThenGles {
-        opengles_version: (2, 0),
-        opengl_version: (3, 3),
-    };
+    let (window, mut device, mut factory, main_color, mut main_depth, mut event_loop) = create_base();
+    let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
 
-    let builder = glutin::WindowBuilder::new().with_title("Nuklear Rust Gfx OpenGL Demo").with_dimensions(1280, 800);
-    let context = glutin::ContextBuilder::new().with_gl(gl_version).with_vsync(true).with_srgb(false).with_depth_buffer(24);
-    let mut event_loop = glutin::EventsLoop::new();
-    let (window, mut device, mut factory, main_color, mut main_depth) = gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, context, &event_loop);
+    let mut closed = false;
+
+    let mut allo = Allocator::new_vec();
+    let mut drawer = Drawer::new(&mut factory, main_color, 36, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY, Buffer::with_size(&mut allo, MAX_COMMANDS_MEMORY), GfxBackend::OpenGlsl150);
+    let mut atlas = FontAtlas::new(&mut allo);
+    let mut cfg = FontConfig::with_size(0.0);
+    let font_14 = atlas.add_font_with_config(&cfg).unwrap();
+
+    let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
+
+
+    let font_tex = {
+        let (b, w, h) = atlas.bake(FontAtlasFormat::NK_FONT_ATLAS_RGBA32);
+        drawer.add_texture(&mut factory, b, w, h)
+    };
+    
+    let mut null = DrawNullTexture::default();
+    atlas.end(font_tex, Some(&mut null));
+
+    let mut config = ConvertConfig::default();
+    config.set_null(null.clone());
+    config.set_circle_segment_count(22);
+    config.set_curve_segment_count(22);
+    config.set_arc_segment_count(22);
+    config.set_global_alpha(1.0f32);
+    config.set_shape_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
+    config.set_line_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
+
+    while !closed {
+        ctx.input_begin();
+        event_loop.poll_events(|event| {
+            println!("{:?}", event);
+            if let glutin::Event::WindowEvent { event, .. } = event {
+                match event {
+                    glutin::WindowEvent::Closed => closed = true,
+                    _ => (),
+                }
+            }
+        });
+        ctx.input_end();
+
+        if closed {
+            break;
+        }
+
+        let (fw, fh) = window.get_inner_size().unwrap();
+        let scale = window.hidpi_factor();
+        let scale = Vec2 { x: scale, y: scale };
+
+        // let media: Media = {};
+
+        let mut basic_state = BasicState {
+            image_active: false,
+            check0: true,
+            check1: false,
+            prog: 80,
+            selected_item: 0,
+            selected_image: 3,
+            selected_icon: 0,
+            items: ["Item 0", "item 1", "item 2"],
+            piemenu_active: false,
+            piemenu_pos: Vec2::default(),
+        };
+
+        drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
+
+        // basic_demo(&mut ctx, &mut media, &mut basic_state);
+        encoder.clear(drawer.col.as_ref().unwrap(), [0.1f32, 0.2f32, 0.3f32, 1.0f32]);
+        drawer.draw(&mut ctx, &mut config, &mut encoder, &mut factory, fw, fh, scale);
+        encoder.flush(&mut device);
+
+        window.swap_buffers().unwrap();
+        device.cleanup();
+
+        ::std::thread::sleep(::std::time::Duration::from_millis(20));
+
+        ctx.clear();
+    }
 
     /*
     let gl_version = GlRequest::GlThenGles {
