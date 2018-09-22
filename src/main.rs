@@ -137,29 +137,26 @@ fn config_setup() -> nuklear::FontConfig {
     cfg.set_glyph_range(font_cyrillic_glyph_ranges());
     cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
 
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(14f32);
-
     return cfg;
+}
+
+fn set_font( cfg: &mut nuklear::FontConfig, atlas: &mut FontAtlas, size: f32, owned_by_atlas: bool) -> usize {
+    cfg.set_ttf_data_owned_by_atlas(owned_by_atlas);
+    cfg.set_size(size);
+    return atlas.add_font_with_config(&cfg).unwrap();
 }
 
 fn main() {
     
     let (window, mut device, mut factory, main_color, mut main_depth, mut event_loop) = create_base();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
-    let mut cfg = FontConfig::with_size(0.0);
-    cfg.set_oversample_h(3);
-    cfg.set_oversample_v(2);
-    cfg.set_glyph_range(font_cyrillic_glyph_ranges());
-    cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
+    let mut cfg = config_setup();
 
     let mut allo = Allocator::new_vec();
     let mut drawer = Drawer::new(&mut factory, main_color, 36, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY, Buffer::with_size(&mut allo, MAX_COMMANDS_MEMORY), GfxBackend::OpenGlsl150);
     let mut atlas = FontAtlas::new(&mut allo);
-
-    cfg.set_ttf_data_owned_by_atlas(false);
-    cfg.set_size(14f32);
-    let font_14 = atlas.add_font_with_config(&cfg).unwrap();
+    
+    let font_14 = set_font(&mut cfg, &mut atlas, 14f32, false);
 
     let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
 
