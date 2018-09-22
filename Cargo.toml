@@ -1,0 +1,18 @@
+[package]
+name = "nuklear-sample-extended"
+version = "0.3.0"
+authors = ["snuk182 <snuk188@gmail.com>"]
+
+[dependencies]
+nuklear-rust = {version = "~0.5", features = ["rust_allocator"]}
+nuklear-backend-gfx = "~0.7"
+gfx_device_gl = "~0.15"
+gfx_window_glutin = "~0.20"
+gfx = "~0.17"
+glutin = "~0.12"
+image = "~0.12"
+gfx_core = "0.8.2"
+
+[[bin]]
+name = "t"
+path = "src/main.rs"
