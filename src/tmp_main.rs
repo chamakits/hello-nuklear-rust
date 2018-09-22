@@ -147,6 +147,7 @@ fn main() {
     
     let (window, mut device, mut factory, main_color, mut main_depth, mut event_loop) = create_base();
     let mut encoder: gfx::Encoder<_, _> = factory.create_command_buffer().into();
+
     let mut cfg = FontConfig::with_size(0.0);
     cfg.set_oversample_h(3);
     cfg.set_oversample_v(2);
@@ -154,21 +155,31 @@ fn main() {
     cfg.set_ttf(include_bytes!("../res/fonts/Roboto-Regular.ttf"));
 
     let mut allo = Allocator::new_vec();
+
     let mut drawer = Drawer::new(&mut factory, main_color, 36, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY, Buffer::with_size(&mut allo, MAX_COMMANDS_MEMORY), GfxBackend::OpenGlsl150);
+
     let mut atlas = FontAtlas::new(&mut allo);
 
     cfg.set_ttf_data_owned_by_atlas(false);
     cfg.set_size(14f32);
     let font_14 = atlas.add_font_with_config(&cfg).unwrap();
 
-    let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
+    let font_tex = {
+        let (b, w, h) = atlas.bake(FontAtlasFormat::NK_FONT_ATLAS_RGBA32);
+        drawer.add_texture(&mut factory, b, w, h)
+    };
 
+    let mut null = DrawNullTexture::default();
+
+    atlas.end(font_tex, Some(&mut null));
+
+    let mut ctx = Context::new(&mut allo, atlas.font(font_14).unwrap().handle());
 
     let font_tex = {
         let (b, w, h) = atlas.bake(FontAtlasFormat::NK_FONT_ATLAS_RGBA32);
         drawer.add_texture(&mut factory, b, w, h)
     };
-    
+
     let mut null = DrawNullTexture::default();
     atlas.end(font_tex, Some(&mut null));
 
@@ -182,6 +193,7 @@ fn main() {
     config.set_line_aa(AntiAliasing::NK_ANTI_ALIASING_ON);
 
     let mut closed = false;
+
     while !closed {
         ctx.input_begin();
         event_loop.poll_events(|event| {
